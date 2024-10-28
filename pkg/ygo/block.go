@@ -1,8 +1,8 @@
 package ygo
 
-type ClientID uint64;
+type ClientId uint64
 
 type ID struct {
-	Client ClientID
-	Clock uint32
+	Client ClientId
+	Clock  uint32
 }
