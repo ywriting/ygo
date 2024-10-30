@@ -6,12 +6,12 @@ import (
 )
 
 type Doc struct {
-	ClientId ClientId
+	ClientID ClientID
 	store    Store
 }
 
 type Options struct {
-	ClientId   ClientId
+	ClientID   ClientID
 	OffsetKind OffsetKind
 	SkipGc     bool
 }
@@ -28,14 +28,14 @@ func NewDefaultOptions() Options {
 	source := rand.NewSource(time.Now().UnixNano())
 	rng := rand.New(source)
 	return Options{
-		ClientId:   ClientId(rng.Uint32()),
+		ClientID:   ClientID(rng.Uint32()),
 		OffsetKind: Bytes,
 		SkipGc:     false,
 	}
 }
-func NewOptionsWithClientId(clientId ClientId) Options {
+func NewOptionsWithClientID(ClientID ClientID) Options {
 	return Options{
-		ClientId:   clientId,
+		ClientID:   ClientID,
 		OffsetKind: Bytes,
 		SkipGc:     false,
 	}
@@ -45,12 +45,12 @@ func NewDoc() Doc {
 	return NewDocWithOptions(NewDefaultOptions())
 }
 
-func NewDocWithClientId(clientId ClientId) Doc {
-	return NewDocWithOptions(NewOptionsWithClientId(clientId))
+func NewDocWithClientID(ClientID ClientID) Doc {
+	return NewDocWithOptions(NewOptionsWithClientID(ClientID))
 }
 
 func NewDocWithOptions(options Options) Doc {
 	return Doc{
-		ClientId: options.ClientId,
+		ClientID: options.ClientID,
 	}
 }
