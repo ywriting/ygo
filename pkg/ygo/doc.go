@@ -54,3 +54,7 @@ func NewDocWithOptions(options Options) Doc {
 		ClientID: options.ClientID,
 	}
 }
+
+func (d *Doc) Transact() Transaction {
+	panic("not implemented")
+}

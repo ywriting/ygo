@@ -1,10 +1,8 @@
 package ygo
 
-import "riguz.com/ygo/pkg/ygo/types"
-
 type Store struct {
 	Options   Options
-	Types     map[string]types.Branch
+	Types     map[string]Branch
 	Blocks    BlockStore
 	Pending   *PendingUpdate
 	PendingDs *DeleteSet
