@@ -11,20 +11,20 @@ type Write interface {
 	WriteUint16(num uint16) error
 	WriteUint32(num uint32) error
 	WriteUint32BigEndian(num uint32) error
+	WriteUint64(num uint64) error
 	WriteFloat32(num float32) error
 	WriteFloat64(num float64) error
-	WriteI64(num int64) error
-	WriteU64(num uint64) error
+	WriteInt64(num int64) error
 	WriteVarUint(num uint) error
-	WriteVarU8(num uint8) error
-	WriteVarU16(num uint16) error
-	WriteVarU32(num uint32) error
-	WriteVarU64(num uint64) error
+	WriteVarUint8(num uint8) error
+	WriteVarUint16(num uint16) error
+	WriteVarUint32(num uint32) error
+	WriteVarUint64(num uint64) error
 	WriteVarInt(num int) error
-	WriteVarI8(num int8) error
-	WriteVarI16(num int16) error
-	WriteVarI32(num int32) error
-	WriteVarI64(num int64) error
+	WriteVarInt8(num int8) error
+	WriteVarInt16(num int16) error
+	WriteVarInt32(num int32) error
+	WriteVarInt64(num int64) error
 	WriteBuf(buf []uint8) error
 	WriteString(str *string) error
 	ToBytes() []byte
@@ -75,6 +75,32 @@ func (w *BufferWrite) WriteUint32BigEndian(num uint32) error {
 		uint8(num)})
 }
 
+func (w *BufferWrite) WriteUint64(num uint64) error {
+	return w.WriteAll([]uint8{
+		uint8(num >> 56),
+		uint8(num >> 48),
+		uint8(num >> 40),
+		uint8(num >> 32),
+		uint8(num >> 24),
+		uint8(num >> 16),
+		uint8(num >> 8),
+		uint8(num),
+	})
+}
+
+func (w *BufferWrite) WriteInt64(num int64) error {
+	return w.WriteAll([]uint8{
+		uint8(num >> 56),
+		uint8(num >> 48),
+		uint8(num >> 40),
+		uint8(num >> 32),
+		uint8(num >> 24),
+		uint8(num >> 16),
+		uint8(num >> 8),
+		uint8(num),
+	})
+}
+
 func (w *BufferWrite) WriteFloat32(num float32) error {
 	return binary.Write(w.buffer, binary.BigEndian, num)
 }
@@ -84,56 +110,50 @@ func (w *BufferWrite) WriteFloat64(num float64) error {
 }
 
 func (w *BufferWrite) WriteVarUint(num uint) error {
-	return w.WriteU64(uint64(num))
+	return w.WriteVarUint64(uint64(num))
 }
 
-func (w *BufferWrite) WriteVarU8(num uint8) error {
-	return w.WriteUint32(uint32(num))
+func (w *BufferWrite) WriteVarUint8(num uint8) error {
+	return w.WriteVarUint64(uint64(num))
 }
 
-func (w *BufferWrite) WriteVarU16(num uint16) error {
-	return w.WriteUint32(uint32(num))
+func (w *BufferWrite) WriteVarUint16(num uint16) error {
+	return w.WriteVarUint64(uint64(num))
 }
 
-func (w *BufferWrite) WriteVarU32(num uint32) error {
-	return w.WriteVarU64(uint64(num))
+func (w *BufferWrite) WriteVarUint32(num uint32) error {
+	return w.WriteVarUint64(uint64(num))
 }
 
-func (w *BufferWrite) WriteVarU64(num uint64) error {
-	for num >= 0b1000_0000 {
-		var b uint8 = uint8(num&0b0111_1111) | 0b1000_0000
-		err := w.WriteUint8(b)
-		if err != nil {
-			return err
-		}
-		num = num >> 7
-	}
-	return w.WriteUint8(uint8(num & 0b0111_1111))
+func (w *BufferWrite) WriteVarUint64(num uint64) error {
+	buf := make([]byte, binary.MaxVarintLen64)
+	n := binary.PutUvarint(buf, uint64(num))
+	return w.WriteAll(buf[:n])
 }
 
 func (w *BufferWrite) WriteVarInt(num int) error {
-	return w.WriteVarI64(int64(num))
+	return w.WriteVarInt64(int64(num))
 }
 
-func (w *BufferWrite) WriteVarI8(num int8) error {
-	return w.WriteVarI64(int64(num))
+func (w *BufferWrite) WriteVarInt8(num int8) error {
+	return w.WriteVarInt64(int64(num))
 }
 
-func (w *BufferWrite) WriteVarI16(num int16) error {
-	return w.WriteVarI64(int64(num))
+func (w *BufferWrite) WriteVarInt16(num int16) error {
+	return w.WriteVarInt64(int64(num))
 }
 
-func (w *BufferWrite) WriteVarI32(num int32) error {
-	return w.WriteVarI64(int64(num))
+func (w *BufferWrite) WriteVarInt32(num int32) error {
+	return w.WriteVarInt64(int64(num))
 }
 
-func (w *BufferWrite) WriteVarI64(num int64) error {
+func (w *BufferWrite) WriteVarInt64(num int64) error {
 	isNegative := num < 0
 	if isNegative {
 		num = -num
 	}
 	firstByte := uint8(int64(0b0011_1111) & num)
-	if num > 0b0011_1111 {
+	if num > int64(0b0011_1111) {
 		firstByte |= uint8(0b1000_0000) // continue reading or not
 	}
 	if isNegative {
@@ -149,10 +169,11 @@ func (w *BufferWrite) WriteVarI64(num int64) error {
 		if num > int64(0b0111_1111) {
 			b |= uint8(0b1000_0000)
 		}
-		b |= uint8(int64(0b0111_111) & num)
+		b |= uint8(int64(0b0111_1111) & num)
 		if err := w.WriteUint8(b); err != nil {
 			return err
 		}
+		num >>= 7
 	}
 	return nil
 }
