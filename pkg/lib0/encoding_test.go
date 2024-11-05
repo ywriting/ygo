@@ -24,6 +24,24 @@ import (
 	console.log(toHexString(result));
 */
 
+func TestWrite_uint8Array(t *testing.T) {
+	w := lib0.NewBufferWrite()
+
+	err := w.WriteUint8Array([]byte{0, 1, 128, 254})
+
+	assert.NilError(t, err)
+	assert.Equal(t, "000180fe", hex.EncodeToString(w.ToBytes()))
+}
+
+func TestWrite_varUint8Array(t *testing.T) {
+	w := lib0.NewBufferWrite()
+
+	err := w.WriteVarUint8Array([]byte{0, 1, 128, 254})
+
+	assert.NilError(t, err)
+	assert.Equal(t, "04000180fe", hex.EncodeToString(w.ToBytes()))
+}
+
 func TestWrite_uint8(t *testing.T) {
 	var tests = []struct {
 		number   uint8
@@ -414,6 +432,27 @@ func TestWrite_varInt64(t *testing.T) {
 			w := lib0.NewBufferWrite()
 
 			err := w.WriteVarInt64(tt.number)
+
+			assert.NilError(t, err)
+			assert.Equal(t, tt.expected, hex.EncodeToString(w.ToBytes()))
+		})
+	}
+}
+
+func TestWrite_string(t *testing.T) {
+	var tests = []struct {
+		str      string
+		expected string
+	}{
+		{"Hello World!", "0c48656c6c6f20576f726c6421"},
+		{"", "00"},
+		{"你好，世界！", "12e4bda0e5a5bdefbc8ce4b896e7958cefbc81"},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("write string:%s", tt.str), func(t *testing.T) {
+			w := lib0.NewBufferWrite()
+
+			err := w.WriteString(&tt.str)
 
 			assert.NilError(t, err)
 			assert.Equal(t, tt.expected, hex.EncodeToString(w.ToBytes()))

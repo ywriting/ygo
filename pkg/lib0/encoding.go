@@ -6,7 +6,7 @@ import (
 )
 
 type Write interface {
-	WriteAll(buf []uint8) error
+	WriteUint8Array(buf []uint8) error
 	WriteUint8(num uint8) error
 	WriteUint16(num uint16) error
 	WriteUint32(num uint32) error
@@ -25,7 +25,7 @@ type Write interface {
 	WriteVarInt16(num int16) error
 	WriteVarInt32(num int32) error
 	WriteVarInt64(num int64) error
-	WriteBuf(buf []uint8) error
+	WriteVarUint8Array(buf []uint8) error
 	WriteString(str *string) error
 	ToBytes() []byte
 }
@@ -45,7 +45,7 @@ func (w *BufferWrite) ToBytes() []byte {
 	return w.buffer.Bytes()
 }
 
-func (w *BufferWrite) WriteAll(buf []uint8) error {
+func (w *BufferWrite) WriteUint8Array(buf []uint8) error {
 	_, err := w.buffer.Write(buf)
 	return err
 }
@@ -56,11 +56,11 @@ func (w *BufferWrite) WriteUint8(value uint8) error {
 }
 
 func (w *BufferWrite) WriteUint16(num uint16) error {
-	return w.WriteAll([]uint8{uint8(num), uint8(num >> 8)})
+	return w.WriteUint8Array([]uint8{uint8(num), uint8(num >> 8)})
 }
 
 func (w *BufferWrite) WriteUint32(num uint32) error {
-	return w.WriteAll([]uint8{
+	return w.WriteUint8Array([]uint8{
 		uint8(num),
 		uint8(num >> 8),
 		uint8(num >> 16),
@@ -68,7 +68,7 @@ func (w *BufferWrite) WriteUint32(num uint32) error {
 }
 
 func (w *BufferWrite) WriteUint32BigEndian(num uint32) error {
-	return w.WriteAll([]uint8{
+	return w.WriteUint8Array([]uint8{
 		uint8(num >> 24),
 		uint8(num >> 16),
 		uint8(num >> 8),
@@ -76,7 +76,7 @@ func (w *BufferWrite) WriteUint32BigEndian(num uint32) error {
 }
 
 func (w *BufferWrite) WriteUint64(num uint64) error {
-	return w.WriteAll([]uint8{
+	return w.WriteUint8Array([]uint8{
 		uint8(num >> 56),
 		uint8(num >> 48),
 		uint8(num >> 40),
@@ -89,7 +89,7 @@ func (w *BufferWrite) WriteUint64(num uint64) error {
 }
 
 func (w *BufferWrite) WriteInt64(num int64) error {
-	return w.WriteAll([]uint8{
+	return w.WriteUint8Array([]uint8{
 		uint8(num >> 56),
 		uint8(num >> 48),
 		uint8(num >> 40),
@@ -128,7 +128,7 @@ func (w *BufferWrite) WriteVarUint32(num uint32) error {
 func (w *BufferWrite) WriteVarUint64(num uint64) error {
 	buf := make([]byte, binary.MaxVarintLen64)
 	n := binary.PutUvarint(buf, uint64(num))
-	return w.WriteAll(buf[:n])
+	return w.WriteUint8Array(buf[:n])
 }
 
 func (w *BufferWrite) WriteVarInt(num int) error {
@@ -178,21 +178,13 @@ func (w *BufferWrite) WriteVarInt64(num int64) error {
 	return nil
 }
 
-func (w *BufferWrite) WriteVarBuf(buf []uint8) error {
+func (w *BufferWrite) WriteVarUint8Array(buf []uint8) error {
 	if err := w.WriteVarUint(uint(len(buf))); err != nil {
 		return err
 	}
-	return w.WriteAll(buf)
+	return w.WriteUint8Array(buf)
 }
 
 func (w *BufferWrite) WriteString(str *string) error {
-	return w.WriteVarBuf([]byte(*str))
-}
-
-func (w *BufferWrite) WriteI64(num int64) error {
-	return binary.Write(w.buffer, binary.BigEndian, num)
-}
-
-func (w *BufferWrite) WriteU64(num uint64) error {
-	return binary.Write(w.buffer, binary.BigEndian, num)
+	return w.WriteVarUint8Array([]byte(*str))
 }
