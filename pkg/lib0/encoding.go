@@ -56,49 +56,23 @@ func (w *BufferWrite) WriteUint8(value uint8) error {
 }
 
 func (w *BufferWrite) WriteUint16(num uint16) error {
-	return w.WriteUint8Array([]uint8{uint8(num), uint8(num >> 8)})
+	return binary.Write(w.buffer, binary.LittleEndian, num)
 }
 
 func (w *BufferWrite) WriteUint32(num uint32) error {
-	return w.WriteUint8Array([]uint8{
-		uint8(num),
-		uint8(num >> 8),
-		uint8(num >> 16),
-		uint8(num >> 24)})
+	return binary.Write(w.buffer, binary.LittleEndian, num)
 }
 
 func (w *BufferWrite) WriteUint32BigEndian(num uint32) error {
-	return w.WriteUint8Array([]uint8{
-		uint8(num >> 24),
-		uint8(num >> 16),
-		uint8(num >> 8),
-		uint8(num)})
+	return binary.Write(w.buffer, binary.BigEndian, num)
 }
 
 func (w *BufferWrite) WriteUint64(num uint64) error {
-	return w.WriteUint8Array([]uint8{
-		uint8(num >> 56),
-		uint8(num >> 48),
-		uint8(num >> 40),
-		uint8(num >> 32),
-		uint8(num >> 24),
-		uint8(num >> 16),
-		uint8(num >> 8),
-		uint8(num),
-	})
+	return binary.Write(w.buffer, binary.BigEndian, num)
 }
 
 func (w *BufferWrite) WriteInt64(num int64) error {
-	return w.WriteUint8Array([]uint8{
-		uint8(num >> 56),
-		uint8(num >> 48),
-		uint8(num >> 40),
-		uint8(num >> 32),
-		uint8(num >> 24),
-		uint8(num >> 16),
-		uint8(num >> 8),
-		uint8(num),
-	})
+	return binary.Write(w.buffer, binary.BigEndian, num)
 }
 
 func (w *BufferWrite) WriteFloat32(num float32) error {
