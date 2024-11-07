@@ -26,7 +26,7 @@ type Write interface {
 	WriteVarInt32(num int32) error
 	WriteVarInt64(num int64) error
 	WriteVarUint8Array(buf []uint8) error
-	WriteString(str *string) error
+	WriteVarString(str *string) error
 	ToBytes() []byte
 }
 
@@ -159,6 +159,6 @@ func (w *BufferWrite) WriteVarUint8Array(buf []uint8) error {
 	return w.WriteUint8Array(buf)
 }
 
-func (w *BufferWrite) WriteString(str *string) error {
+func (w *BufferWrite) WriteVarString(str *string) error {
 	return w.WriteVarUint8Array([]byte(*str))
 }

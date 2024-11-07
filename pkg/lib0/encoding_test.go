@@ -206,6 +206,32 @@ func TestWrite_uint64(t *testing.T) {
 	}
 }
 
+func TestWrite_int64(t *testing.T) {
+	var tests = []struct {
+		number   int64
+		expected string
+	}{
+		{0, "0000000000000000"},
+		{1, "0000000000000001"},
+		{-1, "ffffffffffffffff"},
+		{255, "00000000000000ff"},
+		{65535, "000000000000ffff"},
+		{-65535, "ffffffffffff0001"},
+		{-9223372036854775808, "8000000000000000"},
+		{9223372036854775807, "7fffffffffffffff"},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("write int64:%d", tt.number), func(t *testing.T) {
+			w := lib0.NewBufferWrite()
+
+			err := w.WriteInt64(tt.number)
+
+			assert.NilError(t, err)
+			assert.Equal(t, tt.expected, hex.EncodeToString(w.ToBytes()))
+		})
+	}
+}
+
 func TestWrite_varUint(t *testing.T) {
 	var tests = []struct {
 		number   uint
@@ -439,7 +465,7 @@ func TestWrite_varInt64(t *testing.T) {
 	}
 }
 
-func TestWrite_string(t *testing.T) {
+func TestWrite_varString(t *testing.T) {
 	var tests = []struct {
 		str      string
 		expected string
@@ -449,10 +475,10 @@ func TestWrite_string(t *testing.T) {
 		{"你好，世界！", "12e4bda0e5a5bdefbc8ce4b896e7958cefbc81"},
 	}
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("write string:%s", tt.str), func(t *testing.T) {
+		t.Run(fmt.Sprintf("write var string:%s", tt.str), func(t *testing.T) {
 			w := lib0.NewBufferWrite()
 
-			err := w.WriteString(&tt.str)
+			err := w.WriteVarString(&tt.str)
 
 			assert.NilError(t, err)
 			assert.Equal(t, tt.expected, hex.EncodeToString(w.ToBytes()))
