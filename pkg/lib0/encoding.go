@@ -27,6 +27,7 @@ type Write interface {
 	WriteVarInt64(num int64) error
 	WriteVarUint8Array(buf []uint8) error
 	WriteVarString(str *string) error
+	WriteAny(a *Any) error
 	ToBytes() []byte
 }
 
@@ -161,4 +162,116 @@ func (w *BufferWrite) WriteVarUint8Array(buf []uint8) error {
 
 func (w *BufferWrite) WriteVarString(str *string) error {
 	return w.WriteVarUint8Array([]byte(*str))
+}
+
+func (w *BufferWrite) WriteAny(a *Any) error {
+	switch t := a.data.(type) {
+	case *string:
+		return w.writeString(t)
+	case float32:
+		return w.writeFloat32(t)
+	case float64:
+		return w.writeFloat64(t)
+	case int32:
+		return w.writeVarInt(t)
+	case int64:
+		return w.writeInt64(t)
+	case bool:
+		return w.writeBool(t)
+	case []uint8:
+		return w.writeUint8Array(t)
+	case []Any:
+		return w.writeArray(t)
+	case map[string]Any:
+		return w.writeObject(t)
+	default:
+		if a.isUndefined {
+			return w.WriteUint8(127)
+		}
+		return w.WriteUint8(126)
+	}
+}
+
+func (w *BufferWrite) writeVarInt(num int32) error {
+	if err := w.WriteUint8(125); err != nil {
+		return err
+	}
+	return w.WriteVarInt32(num)
+}
+
+func (w *BufferWrite) writeFloat32(num float32) error {
+	if err := w.WriteUint8(124); err != nil {
+		return err
+	}
+	return w.WriteFloat32(num)
+}
+
+func (w *BufferWrite) writeFloat64(num float64) error {
+	if err := w.WriteUint8(123); err != nil {
+		return err
+	}
+	return w.WriteFloat64(num)
+}
+
+func (w *BufferWrite) writeInt64(num int64) error {
+	if err := w.WriteUint8(122); err != nil {
+		return err
+	}
+	return w.WriteInt64(num)
+}
+
+func (w *BufferWrite) writeBool(val bool) error {
+	var t uint8 = 121
+	if val {
+		t = 120
+	}
+
+	return w.WriteUint8(t)
+}
+
+func (w *BufferWrite) writeString(str *string) error {
+	if err := w.WriteUint8(119); err != nil {
+		return err
+	}
+	return w.WriteVarString(str)
+}
+
+func (w *BufferWrite) writeObject(obj map[string]Any) error {
+	if err := w.WriteUint8(118); err != nil {
+		return err
+	}
+	if err := w.WriteVarUint(uint(len(obj))); err != nil {
+		return err
+	}
+	for k, v := range obj {
+		if err := w.WriteVarString(&k); err != nil {
+			return err
+		}
+		if err := w.WriteAny(&v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *BufferWrite) writeArray(arr []Any) error {
+	if err := w.WriteUint8(117); err != nil {
+		return err
+	}
+	if err := w.WriteVarUint(uint(len(arr))); err != nil {
+		return err
+	}
+	for _, a := range arr {
+		if err := w.WriteAny(&a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *BufferWrite) writeUint8Array(arr []byte) error {
+	if err := w.WriteUint8(116); err != nil {
+		return err
+	}
+	return w.WriteVarUint8Array(arr)
 }
