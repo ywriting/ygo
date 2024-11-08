@@ -1,9 +1,11 @@
 package lib0
 
 type Any struct {
-	data        any
-	isUndefined bool
+	data any
 }
+
+type AnyNull struct{}
+type AnyUndefined struct{}
 
 func newAny(data any) Any {
 	return Any{
@@ -12,15 +14,11 @@ func newAny(data any) Any {
 }
 
 func NewAnyUndefined() Any {
-	return Any{
-		isUndefined: true,
-	}
+	return newAny(AnyUndefined{})
 }
 
 func NewAnyNull() Any {
-	return Any{
-		isUndefined: false,
-	}
+	return newAny(AnyNull{})
 }
 
 func NewAnyInteger(i int32) Any {
@@ -40,14 +38,10 @@ func NewAnyBigInt(i int64) Any {
 }
 
 func NewAnyBool(i bool) Any {
-	if i {
-		return newAny(nil)
-	} else {
-		return newAny(i)
-	}
+	return newAny(i)
 }
 
-func NewAnyString(i *string) Any {
+func NewAnyString(i string) Any {
 	return newAny(i)
 }
 

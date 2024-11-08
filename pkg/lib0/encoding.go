@@ -3,6 +3,8 @@ package lib0
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"fmt"
 )
 
 type Write interface {
@@ -166,7 +168,7 @@ func (w *BufferWrite) WriteVarString(str *string) error {
 
 func (w *BufferWrite) WriteAny(a *Any) error {
 	switch t := a.data.(type) {
-	case *string:
+	case string:
 		return w.writeString(t)
 	case float32:
 		return w.writeFloat32(t)
@@ -184,11 +186,13 @@ func (w *BufferWrite) WriteAny(a *Any) error {
 		return w.writeArray(t)
 	case map[string]Any:
 		return w.writeObject(t)
-	default:
-		if a.isUndefined {
-			return w.WriteUint8(127)
-		}
+	case AnyNull:
 		return w.WriteUint8(126)
+	case AnyUndefined:
+		return w.WriteUint8(127)
+	default:
+		fmt.Printf("%v\n", t)
+		return errors.New("unrecognized any payload")
 	}
 }
 
@@ -229,11 +233,11 @@ func (w *BufferWrite) writeBool(val bool) error {
 	return w.WriteUint8(t)
 }
 
-func (w *BufferWrite) writeString(str *string) error {
+func (w *BufferWrite) writeString(str string) error {
 	if err := w.WriteUint8(119); err != nil {
 		return err
 	}
-	return w.WriteVarString(str)
+	return w.WriteVarString(&str)
 }
 
 func (w *BufferWrite) writeObject(obj map[string]Any) error {

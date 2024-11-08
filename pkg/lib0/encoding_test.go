@@ -485,3 +485,39 @@ func TestWrite_varString(t *testing.T) {
 		})
 	}
 }
+
+func TestWrite_any(t *testing.T) {
+	var tests = []struct {
+		a        lib0.Any
+		expected string
+	}{
+		{lib0.NewAnyUndefined(), "7f"},
+		{lib0.NewAnyNull(), "7e"},
+		{lib0.NewAnyInteger(0), "7d00"},
+		{lib0.NewAnyInteger(1), "7d01"},
+		{lib0.NewAnyInteger(-1), "7d41"},
+		{lib0.NewAnyInteger(2147483647), "7dbfffffff0f"},
+		{lib0.NewAnyBigInt(-9223372036854775808), "7a8000000000000000"},
+		{lib0.NewAnyFloat32(1.9999998807907104), "7c3fffffff"},
+		{lib0.NewAnyFloat64(1.7976931348623157e+308), "7b7fefffffffffffff"},
+		{lib0.NewAnyBool(true), "78"},
+		{lib0.NewAnyBool(false), "79"},
+		{lib0.NewAnyString("Hello world!"), "770c48656c6c6f20776f726c6421"},
+		{lib0.NewAnyUint8Array([]uint8{0x2a, 0x3b, 0x4c, 0x9d}), "74042a3b4c9d"},
+		{lib0.NewAnyObject(map[string]lib0.Any{}), "7600"},
+		{lib0.NewAnyObject(map[string]lib0.Any{
+			"name": lib0.NewAnyString("J. Mes"),
+			"age":  lib0.NewAnyInteger(18),
+		}), "7602046e616d6577064a2e204d6573036167657d12"},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("write var any:%v = %v", tt.a, tt.expected), func(t *testing.T) {
+			w := lib0.NewBufferWrite()
+
+			err := w.WriteAny(&tt.a)
+
+			assert.NilError(t, err)
+			assert.Equal(t, tt.expected, hex.EncodeToString(w.ToBytes()))
+		})
+	}
+}
