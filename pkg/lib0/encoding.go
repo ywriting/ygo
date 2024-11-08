@@ -8,6 +8,8 @@ import (
 	"reflect"
 )
 
+type Undefined struct{}
+
 type Write interface {
 	WriteUint8Array(buf []uint8) error
 	WriteUint8(num uint8) error
