@@ -3,8 +3,9 @@ package lib0
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
+	"math"
+	"reflect"
 )
 
 type Write interface {
@@ -29,7 +30,7 @@ type Write interface {
 	WriteVarInt64(num int64) error
 	WriteVarUint8Array(buf []uint8) error
 	WriteVarString(str *string) error
-	WriteAny(a *Any) error
+	WriteAny(a any) error
 	ToBytes() []byte
 }
 
@@ -166,33 +167,46 @@ func (w *BufferWrite) WriteVarString(str *string) error {
 	return w.WriteVarUint8Array([]byte(*str))
 }
 
-func (w *BufferWrite) WriteAny(a *Any) error {
-	switch t := a.data.(type) {
+func (w *BufferWrite) WriteAny(a any) error {
+	switch t := a.(type) {
 	case string:
 		return w.writeString(t)
 	case float32:
 		return w.writeFloat32(t)
 	case float64:
 		return w.writeFloat64(t)
+	case int8:
+		return w.writeVarInt(int32(t))
+	case int16:
+		return w.writeVarInt(int32(t))
 	case int32:
 		return w.writeVarInt(t)
+	case int:
+		if t <= math.MaxInt32 && t >= math.MinInt32 {
+			return w.writeVarInt(int32(t))
+		} else {
+			return w.writeBigInt(int64(t))
+		}
 	case int64:
-		return w.writeInt64(t)
+		if t <= math.MaxInt32 && t >= math.MinInt32 {
+			return w.writeVarInt(int32(t))
+		} else {
+			return w.writeBigInt(int64(t))
+		}
 	case bool:
 		return w.writeBool(t)
 	case []uint8:
 		return w.writeUint8Array(t)
-	case []Any:
+	case []any:
 		return w.writeArray(t)
-	case map[string]Any:
+	case map[string]any:
 		return w.writeObject(t)
-	case AnyNull:
+	case nil:
 		return w.WriteUint8(126)
-	case AnyUndefined:
+	case Undefined:
 		return w.WriteUint8(127)
 	default:
-		fmt.Printf("%v\n", t)
-		return errors.New("unrecognized any payload")
+		return fmt.Errorf("unrecognized any payload type:%v", reflect.TypeOf(a))
 	}
 }
 
@@ -210,14 +224,26 @@ func (w *BufferWrite) writeFloat32(num float32) error {
 	return w.WriteFloat32(num)
 }
 
+var F64_MAX_SAFE_INTEGER float64 = math.Pow(2, 53) - 1
+var F64_MIN_SAFE_INTEGER float64 = -F64_MAX_SAFE_INTEGER
+
 func (w *BufferWrite) writeFloat64(num float64) error {
-	if err := w.WriteUint8(123); err != nil {
-		return err
+	truncated := math.Trunc(num)
+	if truncated == num &&
+		truncated <= F64_MAX_SAFE_INTEGER &&
+		truncated >= F64_MIN_SAFE_INTEGER {
+		return w.WriteAny(int64(truncated))
+	} else if float64(float32(num)) == num {
+		return w.writeFloat32(float32(num))
+	} else {
+		if err := w.WriteUint8(123); err != nil {
+			return err
+		}
+		return w.WriteFloat64(num)
 	}
-	return w.WriteFloat64(num)
 }
 
-func (w *BufferWrite) writeInt64(num int64) error {
+func (w *BufferWrite) writeBigInt(num int64) error {
 	if err := w.WriteUint8(122); err != nil {
 		return err
 	}
@@ -240,7 +266,7 @@ func (w *BufferWrite) writeString(str string) error {
 	return w.WriteVarString(&str)
 }
 
-func (w *BufferWrite) writeObject(obj map[string]Any) error {
+func (w *BufferWrite) writeObject(obj map[string]any) error {
 	if err := w.WriteUint8(118); err != nil {
 		return err
 	}
@@ -251,14 +277,14 @@ func (w *BufferWrite) writeObject(obj map[string]Any) error {
 		if err := w.WriteVarString(&k); err != nil {
 			return err
 		}
-		if err := w.WriteAny(&v); err != nil {
+		if err := w.WriteAny(v); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (w *BufferWrite) writeArray(arr []Any) error {
+func (w *BufferWrite) writeArray(arr []any) error {
 	if err := w.WriteUint8(117); err != nil {
 		return err
 	}
@@ -266,7 +292,7 @@ func (w *BufferWrite) writeArray(arr []Any) error {
 		return err
 	}
 	for _, a := range arr {
-		if err := w.WriteAny(&a); err != nil {
+		if err := w.WriteAny(a); err != nil {
 			return err
 		}
 	}

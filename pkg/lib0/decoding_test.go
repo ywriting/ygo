@@ -301,3 +301,73 @@ func TestRead_varString(t *testing.T) {
 		})
 	}
 }
+
+func TestRead_anyBasic(t *testing.T) {
+	var tests = []struct {
+		expected any
+		hex      string
+	}{
+		{lib0.Undefined{}, "7f"},
+		{nil, "7e"},
+		{int64(0), "7d00"},
+		{int64(1), "7d01"},
+		{int64(-1), "7d41"},
+		{int64(2147483647), "7dbfffffff0f"},
+		{int64(-9223372036854775808), "7a8000000000000000"},
+		{float32(1.9999998807907104), "7c3fffffff"},
+		{float64(1.7976931348623157e+308), "7b7fefffffffffffff"},
+		{true, "78"},
+		{false, "79"},
+		{"Hello world!", "770c48656c6c6f20776f726c6421"},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("read any:%s", tt.expected), func(t *testing.T) {
+			buf, _ := hex.DecodeString(tt.hex)
+			r := lib0.NewBufferRead(bytes.NewBuffer(buf))
+			value, err := r.ReadAny()
+			assert.NilError(t, err)
+			assert.Equal(t, tt.expected, value)
+		})
+	}
+}
+
+func TestRead_anyByteArray(t *testing.T) {
+	buf, _ := hex.DecodeString("74042a3b4c9d")
+	r := lib0.NewBufferRead(bytes.NewBuffer(buf))
+	value, err := r.ReadAny()
+	assert.NilError(t, err)
+	arr, ok := value.([]uint8)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, hex.EncodeToString([]uint8{0x2a, 0x3b, 0x4c, 0x9d}), hex.EncodeToString(arr))
+}
+
+func TestRead_anyMap(t *testing.T) {
+	buf, _ := hex.DecodeString("7600")
+	r := lib0.NewBufferRead(bytes.NewBuffer(buf))
+	value, err := r.ReadAny()
+	assert.NilError(t, err)
+	obj, ok := value.(map[string]any)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, 0, len(obj))
+
+	buf, _ = hex.DecodeString("7602046e616d6577064a2e204d6573036167657d12")
+	r = lib0.NewBufferRead(bytes.NewBuffer(buf))
+	value, err = r.ReadAny()
+	assert.NilError(t, err)
+	obj, ok = value.(map[string]any)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, "J. Mes", obj["name"])
+	assert.Equal(t, int64(18), obj["age"])
+}
+
+func TestRead_anyAnyArray(t *testing.T) {
+	buf, _ := hex.DecodeString("75037f7dbf037ccf000000")
+	r := lib0.NewBufferRead(bytes.NewBuffer(buf))
+	value, err := r.ReadAny()
+	assert.NilError(t, err)
+	arr, ok := value.([]any)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, lib0.Undefined{}, arr[0])
+	assert.Equal(t, int64(255), arr[1])
+	assert.Equal(t, float32(-2147483648), arr[2])
+}

@@ -22,6 +22,7 @@ type Read interface {
 	ReadVarUint() (uint64, error)
 	ReadVarInt() (int64, error)
 	ReadVarString() (string, error)
+	ReadAny() (any, error)
 }
 
 type BufferRead struct {
@@ -152,4 +153,67 @@ func (r *BufferRead) ReadVarString() (string, error) {
 		return "", err
 	}
 	return string(buf), nil
+}
+
+func (r *BufferRead) ReadAny() (any, error) {
+	t, err := r.ReadUint8()
+	if err != nil {
+		return nil, err
+	}
+	switch t {
+	case 127:
+		return Undefined{}, nil
+	case 126:
+		return nil, nil
+	case 125:
+		return r.ReadVarInt()
+	case 124:
+		return r.ReadFloat32()
+	case 123:
+		return r.ReadFloat64()
+	case 122:
+		return r.ReadInt64()
+	case 121:
+		return false, nil
+	case 120:
+		return true, nil
+	case 119:
+		return r.ReadVarString()
+	case 118:
+		len, err := r.ReadVarInt()
+		if err != nil {
+			return nil, err
+		}
+		obj := map[string]any{}
+		for _ = range len {
+			key, err := r.ReadVarString()
+			if err != nil {
+				return nil, err
+			}
+			val, err := r.ReadAny()
+			if err != nil {
+				return nil, err
+			}
+			obj[key] = val
+		}
+		return obj, nil
+	case 117:
+		len, err := r.ReadVarInt()
+		if err != nil {
+			return nil, err
+		}
+		arr := make([]any, len)
+		for i := range len {
+			val, err := r.ReadAny()
+			if err != nil {
+				return nil, err
+			}
+			arr[i] = val
+		}
+		return arr, nil
+	case 116:
+		return r.ReadVarUint8Array()
+	default:
+		return nil, fmt.Errorf("unknown any type: %v", t)
+	}
 }
