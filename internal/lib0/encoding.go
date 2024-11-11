@@ -36,6 +36,8 @@ type Write interface {
 	ToBytes() []byte
 }
 
+var _ Write = &BufferWrite{}
+
 type BufferWrite struct {
 	buffer *bytes.Buffer
 }

@@ -13,7 +13,7 @@ type Read interface {
 	ReadUint8() (uint8, error)
 	ReadUint16() (uint16, error)
 	ReadUint32() (uint32, error)
-	ReadUint32BigEndian(uint32, error)
+	ReadUint32BigEndian() (uint32, error)
 	ReadUint64() (uint64, error)
 	ReadFloat32() (float32, error)
 	ReadFloat64() (float64, error)
@@ -24,6 +24,8 @@ type Read interface {
 	ReadVarString() (string, error)
 	ReadAny() (any, error)
 }
+
+var _ Read = &BufferRead{}
 
 type BufferRead struct {
 	reader *bufio.Reader

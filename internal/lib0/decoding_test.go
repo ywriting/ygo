@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"gotest.tools/assert"
-	"riguz.com/ygo/pkg/lib0"
+	"riguz.com/ygo/internal/lib0"
 )
 
 func TestRead_uint8array(t *testing.T) {
