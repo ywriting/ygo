@@ -1,6 +1,8 @@
 package ygo
 
 import (
+	"unicode/utf16"
+
 	"riguz.com/ygo/internal/lib0"
 )
 
@@ -120,4 +122,185 @@ func (e *EncoderV1) WriteJson(data any) error {
 
 func (e *EncoderV1) WriteKey(key *string) error {
 	return e.buf.WriteVarString(key)
+}
+
+type IntDiffOptRleEncoder struct {
+	buf   lib0.BufferWrite
+	last  uint32
+	count uint32
+	diff  int32
+}
+
+func NewIntDiffOptRleEncoder() IntDiffOptRleEncoder {
+	return IntDiffOptRleEncoder{
+		buf:   lib0.NewBufferWrite(),
+		last:  0,
+		count: 0,
+		diff:  0,
+	}
+}
+
+func (i *IntDiffOptRleEncoder) ToBytes() ([]uint8, error) {
+	if err := i.flush(); err != nil {
+		return nil, err
+	}
+	return i.buf.ToBytes(), nil
+}
+
+func (i *IntDiffOptRleEncoder) Write(value uint32) error {
+	var diff int32 = int32(value) - int32(i.last)
+	if i.diff == diff {
+		i.last = value
+		i.count += 1
+	} else {
+		if err := i.flush(); err != nil {
+			return err
+		}
+		i.count = 1
+		i.diff = diff
+		i.last = value
+	}
+	return nil
+}
+
+func (i *IntDiffOptRleEncoder) flush() error {
+	if i.count > 0 {
+		var encodeDiff int32 = i.diff << 1
+		if i.count == 1 {
+			encodeDiff |= 0
+		} else {
+			encodeDiff |= 1
+		}
+		if err := i.buf.WriteVarInt64(int64(encodeDiff)); err != nil {
+			return err
+		}
+		if i.count > 1 {
+			if err := i.buf.WriteVarUint32(i.count - 2); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+type UIntOptRleEncoder struct {
+	buf   lib0.BufferWrite
+	last  uint64
+	count uint32
+}
+
+func NewUIntOptRleEncoder() UIntOptRleEncoder {
+	return UIntOptRleEncoder{
+		buf:   lib0.NewBufferWrite(),
+		last:  0,
+		count: 0,
+	}
+}
+
+func (u *UIntOptRleEncoder) ToBytes() ([]uint8, error) {
+	if err := u.flush(); err != nil {
+		return nil, err
+	}
+	return u.buf.ToBytes(), nil
+}
+
+func (u *UIntOptRleEncoder) Write(value uint64) error {
+	if u.last == value {
+		u.count += 1
+	} else {
+		if err := u.flush(); err != nil {
+			return err
+		}
+		u.count = 1
+		u.last = value
+	}
+	return nil
+}
+
+func (u *UIntOptRleEncoder) flush() error {
+	if u.count > 0 {
+		if u.count == 1 {
+			return u.buf.WriteVarInt64(int64(u.last))
+		} else {
+			if err := u.buf.WriteVarInt64(-int64(u.last)); err != nil {
+				return err
+			}
+			if err := u.buf.WriteVarUint32(u.count - 2); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// same as:
+// var encoder = new encoding.RleEncoder(encoding.writeUint8);
+type RleEncoder struct {
+	buf   lib0.BufferWrite
+	last  *uint8
+	count uint32
+}
+
+func NewRleEncoder() RleEncoder {
+	return RleEncoder{
+		buf:   lib0.NewBufferWrite(),
+		last:  nil,
+		count: 0,
+	}
+}
+
+func (r *RleEncoder) ToBytes() []uint8 { return r.buf.ToBytes() }
+
+func (r *RleEncoder) Write(value uint8) error {
+	if r.last != nil && *r.last == value {
+		r.count += 1
+	} else {
+		if r.count > 0 {
+			if err := r.buf.WriteVarUint32(r.count - 1); err != nil {
+				return err
+			}
+		}
+		r.count = 1
+		if err := r.buf.WriteUint8(value); err != nil {
+			return err
+		}
+		r.last = &value
+	}
+	return nil
+}
+
+type StringEncoder struct {
+	buf        lib0.BufferWrite
+	str        string
+	lenEncoder UIntOptRleEncoder
+}
+
+func NewStringEncoder() StringEncoder {
+	return StringEncoder{
+		buf:        lib0.NewBufferWrite(),
+		str:        "",
+		lenEncoder: NewUIntOptRleEncoder(),
+	}
+}
+
+func (s *StringEncoder) ToBytes() ([]uint8, error) {
+	lengths, err := s.lenEncoder.ToBytes()
+	if err != nil {
+		return nil, err
+	}
+	writer := lib0.NewBufferWrite()
+	if err := writer.WriteVarString(&s.str); err != nil {
+		return nil, err
+	}
+	if err := writer.WriteUint8Array(lengths); err != nil {
+		return nil, err
+	}
+	return writer.ToBytes(), nil
+}
+
+func (s *StringEncoder) Write(str *string) error {
+	utf16Units := utf16.Encode([]rune(*str))
+	utf16Len := len(utf16Units)
+	s.str += *str
+	return s.lenEncoder.Write(uint64(utf16Len))
 }
