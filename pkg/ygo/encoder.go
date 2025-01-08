@@ -304,3 +304,92 @@ func (s *StringEncoder) Write(str *string) error {
 	s.str += *str
 	return s.lenEncoder.Write(uint64(utf16Len))
 }
+
+type EncoderV2 struct {
+	buf               lib0.Write
+	keyTable          map[string]uint32
+	dsCurrVal         uint32
+	seqeuncer         uint32
+	keyClockEncoder   *IntDiffOptRleEncoder
+	clientEncoder     *UIntOptRleEncoder
+	leftClockEncoder  *IntDiffOptRleEncoder
+	rightClockEncoder *IntDiffOptRleEncoder
+	infoEncoder       *RleEncoder
+	stringEncoder     *StringEncoder
+	parentInfoEncoder *RleEncoder
+	typeRefEncoder    *UIntOptRleEncoder
+	lenEncoder        *UIntOptRleEncoder
+}
+
+func NewEncoerV2() EncoderV2 {
+	w := lib0.NewBufferWrite()
+	keyClockEncoder := NewIntDiffOptRleEncoder()
+	clientEncoder := NewUIntOptRleEncoder()
+	leftClockEncoder := NewIntDiffOptRleEncoder()
+	rightClockEncoder := NewIntDiffOptRleEncoder()
+	infoEncoder := NewRleEncoder()
+	stringEncoder := NewStringEncoder()
+	parentInfoEncoder := NewRleEncoder()
+	typeRefEncoder := NewUIntOptRleEncoder()
+	lenEncoder := NewUIntOptRleEncoder()
+	return EncoderV2{
+		buf:               &w,
+		keyTable:          map[string]uint32{},
+		seqeuncer:         0,
+		dsCurrVal:         0,
+		keyClockEncoder:   &keyClockEncoder,
+		clientEncoder:     &clientEncoder,
+		leftClockEncoder:  &leftClockEncoder,
+		rightClockEncoder: &rightClockEncoder,
+		infoEncoder:       &infoEncoder,
+		stringEncoder:     &stringEncoder,
+		parentInfoEncoder: &parentInfoEncoder,
+		typeRefEncoder:    &typeRefEncoder,
+		lenEncoder:        &lenEncoder,
+	}
+}
+
+func (e *EncoderV2) ToBytes() ([]uint8, error) {
+	keyClock, err := e.keyClockEncoder.ToBytes()
+	if err != nil {
+		return nil, err
+	}
+	client, err := e.clientEncoder.ToBytes()
+	if err != nil {
+		return nil, err
+	}
+	leftClock, err := e.leftClockEncoder.ToBytes()
+	if err != nil {
+		return nil, err
+	}
+	rightClock, err := e.rightClockEncoder.ToBytes()
+	if err != nil {
+		return nil, err
+	}
+	info := e.infoEncoder.ToBytes()
+	str, err := e.stringEncoder.ToBytes()
+	if err != nil {
+		return nil, err
+	}
+	parentInfo := e.parentInfoEncoder.ToBytes()
+	typeRef, err := e.typeRefEncoder.ToBytes()
+	if err != nil {
+		return nil, err
+	}
+	len, err := e.lenEncoder.ToBytes()
+	if err != nil {
+		return nil, err
+	}
+	rest := e.buf.ToBytes()
+	writer := lib0.NewBufferWrite()
+	if err := writer.WriteUint8(0); err != nil {
+		return nil, err
+	}
+	for _, arr := range [][]uint8{keyClock, client, leftClock, rightClock,
+		info, str, parentInfo, typeRef, len, rest} {
+		if err := writer.WriteVarUint8Array(arr); err != nil {
+			return nil, err
+		}
+	}
+	return writer.ToBytes(), nil
+}

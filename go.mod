@@ -6,6 +6,7 @@ require golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
 
 require (
 	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/matoous/go-nanoid/v2 v2.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 )
 

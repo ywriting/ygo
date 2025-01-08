@@ -3,58 +3,71 @@ package ygo
 import (
 	"math/rand"
 	"time"
+
+	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
-type Doc struct {
-	ClientID ClientID
-	store    Store
+type DocOptions struct {
+	ClientId uint64
+	Guid     string
+	Gc       bool
 }
 
-type Options struct {
-	ClientID   ClientID
-	OffsetKind OffsetKind
-	SkipGc     bool
-}
-
-type OffsetKind int
-
-const (
-	Bytes OffsetKind = 0
-	Utf16 OffsetKind = 1
-	Utf32 OffsetKind = 2
-)
-
-func NewDefaultOptions() Options {
+func NewDocOptions(options ...func(*DocOptions)) (*DocOptions, error) {
 	source := rand.NewSource(time.Now().UnixNano())
 	rng := rand.New(source)
-	return Options{
-		ClientID:   ClientID(rng.Uint32()),
-		OffsetKind: Bytes,
-		SkipGc:     false,
+	id, err := gonanoid.New()
+	if err != nil {
+		return nil, err
 	}
-}
-func NewOptionsWithClientID(ClientID ClientID) Options {
-	return Options{
-		ClientID:   ClientID,
-		OffsetKind: Bytes,
-		SkipGc:     false,
+	val := &DocOptions{
+		ClientId: uint64(rng.Uint32()),
+		Guid:     id,
+		Gc:       false,
 	}
+	for _, o := range options {
+		o(val)
+	}
+	return val, nil
 }
 
-func NewDoc() Doc {
-	return NewDocWithOptions(NewDefaultOptions())
-}
-
-func NewDocWithClientID(ClientID ClientID) Doc {
-	return NewDocWithOptions(NewOptionsWithClientID(ClientID))
-}
-
-func NewDocWithOptions(options Options) Doc {
-	return Doc{
-		ClientID: options.ClientID,
+func WithClientId(id uint64) func(*DocOptions) {
+	return func(s *DocOptions) {
+		s.ClientId = id
 	}
 }
 
-func (d *Doc) Transact() Transaction {
-	panic("not implemented")
+func WithGuid(guid string) func(*DocOptions) {
+	return func(s *DocOptions) {
+		s.Guid = guid
+	}
+}
+
+func WithGc(autoGc bool) func(*DocOptions) {
+	return func(s *DocOptions) {
+		s.Gc = autoGc
+	}
+}
+
+type Doc struct {
+	clientId  uint64
+	options   DocOptions
+	store     *DocStore
+	publisher *DocPublisher
+}
+
+func NewDoc() (*Doc, error) {
+	options, err := NewDocOptions()
+	if err != nil {
+		return nil, err
+	}
+	return NewDocWithOptions(*options), nil
+}
+
+func NewDocWithOptions(options DocOptions) *Doc {
+	return &Doc{
+		clientId: options.ClientId,
+		options:  options,
+		// todo
+	}
 }

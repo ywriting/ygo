@@ -33,31 +33,6 @@ type Item struct {
 	Info        ItemFlags
 }
 
-func NewItem(id ID, left *Block, origin *ID, right *Block, rightOrigin *ID,
-	parent TypePtr, parentSub *string,
-	content ItemContent) Item {
-	info := NewItemFlags(0)
-	if content.IsCountable() {
-		info.SetCountable()
-	}
-	len := content.Len(Utf16)
-	item := Item{
-		ID:          id,
-		Len:         len,
-		Left:        left,
-		Origin:      origin,
-		Right:       right,
-		RightOrigin: rightOrigin,
-		Content:     content,
-		Parent:      parent,
-		ParentSub:   parentSub,
-		Info:        info,
-		Moved:       nil,
-	}
-	// todo:
-	return item
-}
-
 func (i *Item) Contains(id ID) bool {
 	return i.ID.Client == id.Client &&
 		id.Clock >= i.ID.Clock &&
@@ -74,14 +49,6 @@ func (i *Item) IsCountable() bool {
 
 func (i *Item) MarkAsDeleted() {
 	i.Info.SetDeleted()
-}
-
-func (i *Item) Repair(store *Store) {
-	panic("todo")
-}
-
-func (i *Item) ContentLen(kind OffsetKind) uint32 {
-	return i.Content.Len(kind)
 }
 
 func (i *Item) LastId() ID {
@@ -125,7 +92,6 @@ type BlockRange struct {
 type ItemContent interface {
 	GetRefNumber() uint8
 	IsCountable() bool
-	Len(kind OffsetKind) uint32
 }
 
 const (
@@ -152,10 +118,6 @@ func (c *AnyContent) GetRefNumber() uint8 {
 
 func (c *AnyContent) IsCountable() bool {
 	return true
-}
-
-func (c *AnyContent) Len(kind OffsetKind) uint32 {
-	return 0
 }
 
 type BinaryContent struct{}
